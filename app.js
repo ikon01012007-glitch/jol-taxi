@@ -28,6 +28,7 @@ const SERVICE_TYPES = [
     bookLabel: 'Заказать поездку',
     vehicleHint: 'AI рекомендует цену, вы выбираете класс',
     placesHeading: 'Популярные точки Астаны',
+    placesHint: 'Нажмите или ищите выше',
     welcomeEyebrow: 'Пассажир',
   },
   {
@@ -42,6 +43,7 @@ const SERVICE_TYPES = [
     bookLabel: 'Заказать межгород',
     vehicleHint: 'Подбор под дальность маршрута и комфорт',
     placesHeading: 'Популярные междугородние маршруты',
+    placesHint: 'Выберите город или точку на карте',
     welcomeEyebrow: 'Трансфер',
   },
   {
@@ -56,6 +58,7 @@ const SERVICE_TYPES = [
     bookLabel: 'Оформить доставку',
     vehicleHint: 'Выберите формат курьера или грузового авто',
     placesHeading: 'Частые точки для доставки',
+    placesHint: 'Нажмите или ищите выше',
     welcomeEyebrow: 'Доставка',
   },
 ];
@@ -93,10 +96,12 @@ const state = {
   routeLine: null,
   quote: null,
   supportLoaded: false,
+  mobileSheetExpanded: false,
 };
 
 const els = {
   appShell: document.getElementById('appShell'),
+  bottomSheet: document.getElementById('bottomSheet'),
   authForm: document.getElementById('authForm'),
   authToggleBtn: document.getElementById('authToggleBtn'),
   authHeading: document.getElementById('authHeading'),
@@ -114,9 +119,8 @@ const els = {
   driverFields: document.getElementById('driverFields'),
   carModel: document.getElementById('carModel'),
   carNumber: document.getElementById('carNumber'),
-  serviceGrid: document.getElementById('serviceGrid'),
-  serviceHeading: document.getElementById('serviceHeading'),
   serviceHint: document.getElementById('serviceHint'),
+  serviceGrid: document.getElementById('serviceGrid'),
   pickupLabelText: document.getElementById('pickupLabelText'),
   destinationLabelText: document.getElementById('destinationLabelText'),
   pickupInput: document.getElementById('pickupInput'),
@@ -130,6 +134,7 @@ const els = {
   vehicleHint: document.getElementById('vehicleHint'),
   vehicleGrid: document.getElementById('vehicleGrid'),
   quoteBtn: document.getElementById('quoteBtn'),
+  mobileSheetToggle: document.getElementById('mobileSheetToggle'),
   quotePrice: document.getElementById('quotePrice'),
   metricsGrid: document.getElementById('metricsGrid'),
   aiReasoning: document.getElementById('aiReasoning'),
@@ -160,6 +165,7 @@ async function init() {
   restoreSession();
   applyServiceUi();
   initMap();
+  syncMobileSheet();
   await safeInitDb();
   await loadHistory();
 }
@@ -178,18 +184,20 @@ function bindEvents() {
 
   els.pickupInput.addEventListener('focus', () => {
     state.activeField = 'pickup';
+    expandMobileSheet();
   });
   els.destinationInput.addEventListener('focus', () => {
     state.activeField = 'destination';
+    expandMobileSheet();
   });
 
   els.pickupInput.addEventListener('input', handlePlaceSearch);
   els.destinationInput.addEventListener('input', handlePlaceSearch);
-
   els.useMyLocationBtn.addEventListener('click', useMyLocation);
   els.swapLocationsBtn.addEventListener('click', swapLocations);
   els.clearRouteBtn.addEventListener('click', clearRoute);
   els.quoteBtn.addEventListener('click', requestQuote);
+  els.mobileSheetToggle.addEventListener('click', toggleMobileSheet);
   els.bookRideBtn.addEventListener('click', bookRide);
   els.loadHistoryBtn.addEventListener('click', loadHistory);
   els.logoutBtn.addEventListener('click', logout);
@@ -202,13 +210,13 @@ function bindEvents() {
       closeSupport();
     }
   });
+
+  window.addEventListener('resize', syncMobileSheet);
 }
 
 function initMap() {
   state.map = L.map('map', { zoomControl: false }).setView([51.1282, 71.4304], 12.7);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 19,
-  }).addTo(state.map);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(state.map);
 
   state.map.on('click', (event) => {
     const target = state.activeField === 'destination' ? 'destination' : 'pickup';
@@ -268,6 +276,7 @@ function renderVehicles() {
       state.selectedVehicle = vehicle;
       renderVehicles();
       updateQuoteView();
+      expandMobileSheet();
     });
     els.vehicleGrid.append(button);
   });
@@ -286,6 +295,7 @@ function selectService(serviceType) {
   renderPlaces(getPlacesForCurrentService());
   applyServiceUi();
   updateQuoteView();
+  expandMobileSheet();
 }
 
 function applyServiceUi() {
@@ -298,7 +308,7 @@ function applyServiceUi() {
   els.bookRideBtn.textContent = service.bookLabel;
   els.vehicleHint.textContent = service.vehicleHint;
   els.placesHeading.textContent = service.placesHeading;
-  els.placesHint.textContent = service.id === 'intercity' ? 'Выберите город или точку на карте' : 'Нажмите или ищите выше';
+  els.placesHint.textContent = service.placesHint;
   els.welcomeEyebrow.textContent = service.welcomeEyebrow;
 }
 
@@ -408,7 +418,6 @@ function persistSession() {
 
 function syncSessionUi() {
   const isLoggedIn = Boolean(state.user);
-  document.body.classList.toggle('logged-in', isLoggedIn);
   els.appShell.classList.toggle('logged-in', isLoggedIn);
 
   if (state.user) {
@@ -420,6 +429,35 @@ function syncSessionUi() {
     els.sessionBadge.textContent = 'Гость';
     els.logoutBtn.hidden = true;
   }
+}
+
+function toggleMobileSheet() {
+  if (!isMobileViewport()) {
+    return;
+  }
+
+  state.mobileSheetExpanded = !state.mobileSheetExpanded;
+  syncMobileSheet();
+}
+
+function syncMobileSheet() {
+  if (!isMobileViewport()) {
+    els.bottomSheet.classList.remove('mobile-collapsed');
+    els.mobileSheetToggle.textContent = 'Показать меню';
+    return;
+  }
+
+  els.bottomSheet.classList.toggle('mobile-collapsed', !state.mobileSheetExpanded);
+  els.mobileSheetToggle.textContent = state.mobileSheetExpanded ? 'Скрыть меню' : 'Показать меню';
+}
+
+function expandMobileSheet() {
+  if (!isMobileViewport()) {
+    return;
+  }
+
+  state.mobileSheetExpanded = true;
+  syncMobileSheet();
 }
 
 async function safeInitDb() {
@@ -468,12 +506,14 @@ function setPickup(place) {
   state.pickup = { ...place };
   els.pickupInput.value = place.label;
   updateMarker('pickup', place, true);
+  expandMobileSheet();
 }
 
 function setDestination(place) {
   state.destination = { ...place };
   els.destinationInput.value = place.label;
   updateMarker('destination', place, false);
+  expandMobileSheet();
 }
 
 function updateMarker(type, place, fitBounds = false) {
@@ -563,6 +603,7 @@ async function requestQuote() {
   }
 
   try {
+    expandMobileSheet();
     els.quoteBtn.disabled = true;
     els.quoteBtn.textContent = 'Считаю...';
     const response = await apiFetch('/.netlify/functions/quote', {
@@ -632,6 +673,7 @@ async function bookRide() {
   }
 
   try {
+    expandMobileSheet();
     const adjustedPrice = Math.round(state.quote.fare.recommendedPrice * state.selectedVehicle.multiplier);
     const fare = {
       ...state.quote.fare,
@@ -797,6 +839,10 @@ function getMapPointLabel(target) {
 function humanizeServiceType(serviceType) {
   const service = SERVICE_TYPES.find((item) => item.id === serviceType);
   return service ? service.title : 'Такси';
+}
+
+function isMobileViewport() {
+  return window.matchMedia('(max-width: 760px)').matches;
 }
 
 function showToast(message) {
