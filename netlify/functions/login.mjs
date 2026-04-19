@@ -1,4 +1,4 @@
-import { neon } from '@netlify/neon';
+import { neon } from '@neondatabase/serverless'; // ИСПРАВЛЕНО
 
 export default async function handler(request, context) {
     if (request.method !== 'POST') return new Response(JSON.stringify({ error: 'Method Not Allowed' }), { status: 405 });
@@ -19,6 +19,6 @@ export default async function handler(request, context) {
             return new Response(JSON.stringify({ error: "Неверный логин или пароль" }), { status: 401 });
         }
     } catch (error) {
-        return new Response(JSON.stringify({ error: "Ошибка сервера" }), { status: 500 });
+        return new Response(JSON.stringify({ error: error.message }), { status: 500 });
     }
 }

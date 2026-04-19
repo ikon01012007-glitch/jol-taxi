@@ -1,4 +1,4 @@
-import { neon } from '@netlify/neon';
+import { neon } from '@neondatabase/serverless'; // ИСПРАВЛЕНО
 
 export default async function handler(request, context) {
     if (request.method !== 'POST') return new Response(JSON.stringify({ error: 'Method Not Allowed' }), { status: 405 });
@@ -14,8 +14,8 @@ export default async function handler(request, context) {
             RETURNING id, name, email, role;
         `;
 
-        return new Response(JSON.stringify({ message: "✅ Регистрация в Jol Taxi успешна!", user: result[0] }), { status: 200 });
+        return new Response(JSON.stringify({ message: "✅ Регистрация успешна!", user: result[0] }), { status: 200 });
     } catch (error) {
-        return new Response(JSON.stringify({ error: "Ошибка регистрации. Возможно, такой email или ИИН уже есть." }), { status: 500 });
+        return new Response(JSON.stringify({ error: error.message }), { status: 500 });
     }
 }
