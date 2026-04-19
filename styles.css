@@ -2,7 +2,6 @@
   color-scheme: light;
   --bg: #f4f4f1;
   --panel: #111111;
-  --panel-soft: rgba(255, 255, 255, 0.08);
   --surface: #ffffff;
   --surface-alt: #f7f7f5;
   --line: rgba(17, 17, 17, 0.08);
@@ -10,8 +9,6 @@
   --muted: #66645f;
   --accent: #0a0a0a;
   --accent-contrast: #ffffff;
-  --success: #1e7f4d;
-  --warning: #c47e14;
   --shadow: 0 24px 70px rgba(0, 0, 0, 0.12);
 }
 
@@ -48,9 +45,17 @@ button {
 .app-shell {
   min-height: 100vh;
   display: grid;
-  grid-template-columns: minmax(320px, 440px) minmax(360px, 1fr);
+  grid-template-columns: minmax(320px, 420px) minmax(360px, 1fr);
   gap: 28px;
   padding: 24px;
+}
+
+.app-shell.logged-in {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.app-shell.logged-in .side-panel {
+  display: none;
 }
 
 .side-panel {
@@ -68,6 +73,7 @@ button {
 .welcome-card,
 .places-block,
 .vehicles-block,
+.service-block,
 .chat-panel {
   background: rgba(255, 255, 255, 0.88);
   backdrop-filter: blur(16px);
@@ -78,9 +84,7 @@ button {
 .brand-block {
   border-radius: 28px;
   padding: 28px;
-  background:
-    linear-gradient(150deg, rgba(10, 10, 10, 0.96), rgba(34, 34, 34, 0.92)),
-    var(--panel);
+  background: linear-gradient(150deg, rgba(10, 10, 10, 0.96), rgba(34, 34, 34, 0.92));
   color: white;
 }
 
@@ -285,7 +289,7 @@ button {
 }
 
 .phone-screen {
-  width: min(100%, 900px);
+  width: min(100%, 1280px);
   background: rgba(255, 255, 255, 0.45);
   border-radius: 36px;
   padding: 20px;
@@ -335,11 +339,12 @@ button {
 
 .bottom-sheet {
   position: absolute;
-  inset: auto 20px 20px 20px;
+  inset: auto 20px 20px auto;
   z-index: 450;
   display: grid;
   gap: 14px;
-  max-height: 72vh;
+  width: min(560px, calc(100% - 40px));
+  max-height: min(62vh, 780px);
   overflow: auto;
   padding: 16px;
   border-radius: 28px;
@@ -360,7 +365,8 @@ button {
 .places-block,
 .vehicles-block,
 .quote-card,
-.history-card {
+.history-card,
+.service-block {
   border-radius: 24px;
   padding: 18px;
 }
@@ -368,16 +374,18 @@ button {
 .places-list,
 .vehicle-grid,
 .metrics-grid,
-.history-list {
+.history-list,
+.service-grid {
   display: grid;
   gap: 10px;
 }
 
-.places-list {
-  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+.service-grid {
+  grid-template-columns: repeat(3, 1fr);
   margin-top: 12px;
 }
 
+.service-card,
 .place-chip,
 .vehicle-card {
   border-radius: 20px;
@@ -387,18 +395,38 @@ button {
   text-align: left;
 }
 
+.service-card strong,
 .place-chip strong,
 .vehicle-card strong {
   display: block;
   margin-bottom: 6px;
 }
 
+.service-card p,
 .place-chip span,
-.vehicle-card p {
+.vehicle-card p,
+.vehicle-card span {
   color: var(--muted);
   font-size: 0.9rem;
   line-height: 1.4;
   margin: 0;
+}
+
+.service-card.active,
+.vehicle-card.active {
+  background: #111111;
+  color: white;
+}
+
+.service-card.active p,
+.vehicle-card.active p,
+.vehicle-card.active span {
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.places-list {
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  margin-top: 12px;
 }
 
 .vehicle-grid {
@@ -406,18 +434,8 @@ button {
   margin-top: 12px;
 }
 
-.vehicle-card.active {
-  background: #111111;
-  color: white;
-}
-
-.vehicle-card.active p,
-.vehicle-card.active span {
-  color: rgba(255, 255, 255, 0.72);
-}
-
 .metrics-grid {
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   margin: 16px 0;
 }
 
@@ -580,7 +598,13 @@ button {
   }
 
   .map-stack {
-    min-height: 72vh;
+    min-height: 78vh;
+  }
+
+  .bottom-sheet {
+    width: calc(100% - 20px);
+    inset: auto 10px 10px 10px;
+    max-height: 72vh;
   }
 }
 
@@ -598,9 +622,11 @@ button {
 
   .bottom-sheet {
     inset: auto 10px 10px 10px;
+    width: auto;
     max-height: 76vh;
   }
 
+  .service-grid,
   .vehicle-grid,
   .metrics-grid,
   .places-list {

@@ -1,4 +1,4 @@
-const ASTANA_PLACES = [
+const CITY_PLACES = [
   { id: 'baiterek', label: 'Байтерек', subtitle: 'Монумент, центр', lat: 51.1284, lng: 71.4305 },
   { id: 'khan-shatyr', label: 'Khan Shatyr', subtitle: 'ТРЦ и центр притяжения', lat: 51.1325, lng: 71.4038 },
   { id: 'airport', label: 'Аэропорт Астаны', subtitle: 'NQZ, международный аэропорт', lat: 51.0226, lng: 71.4674 },
@@ -9,33 +9,82 @@ const ASTANA_PLACES = [
   { id: 'park', label: 'Центральный парк', subtitle: 'Набережная и прогулки', lat: 51.1557, lng: 71.4236 },
 ];
 
-const VEHICLES = [
+const INTERCITY_PLACES = [
+  { id: 'karaganda', label: 'Караганда', subtitle: 'Междугородний маршрут', lat: 49.8047, lng: 73.1094 },
+  { id: 'kokshetau', label: 'Кокшетау', subtitle: 'Северное направление', lat: 53.2871, lng: 69.4043 },
+  { id: 'burabay', label: 'Бурабай', subtitle: 'Курорт и отдых', lat: 53.083, lng: 70.3136 },
+];
+
+const SERVICE_TYPES = [
   {
-    id: 'jol_x',
-    title: 'Jol X',
-    description: 'Оптимальный повседневный класс',
-    multiplier: 1,
+    id: 'city',
+    title: 'Такси',
+    description: 'Поездка по Астане за минуты',
+    hint: 'Городская поездка по Астане',
+    pickupLabel: 'Откуда',
+    destinationLabel: 'Куда',
+    pickupPlaceholder: 'Выберите точку на карте или из списка',
+    destinationPlaceholder: 'Например, Khan Shatyr',
+    bookLabel: 'Заказать поездку',
+    vehicleHint: 'AI рекомендует цену, вы выбираете класс',
+    placesHeading: 'Популярные точки Астаны',
+    welcomeEyebrow: 'Пассажир',
   },
   {
-    id: 'comfort',
-    title: 'Comfort',
-    description: 'Больше места и тишины',
-    multiplier: 1.18,
+    id: 'intercity',
+    title: 'Межгород',
+    description: 'Дальние поездки между городами',
+    hint: 'Междугороднее такси и трансферы',
+    pickupLabel: 'Где забрать',
+    destinationLabel: 'Куда едем',
+    pickupPlaceholder: 'Старт, например Астана',
+    destinationPlaceholder: 'Например, Караганда',
+    bookLabel: 'Заказать межгород',
+    vehicleHint: 'Подбор под дальность маршрута и комфорт',
+    placesHeading: 'Популярные междугородние маршруты',
+    welcomeEyebrow: 'Трансфер',
   },
   {
-    id: 'business',
-    title: 'Business',
-    description: 'Премиум-салон и приоритетная подача',
-    multiplier: 1.42,
+    id: 'delivery',
+    title: 'Доставка',
+    description: 'Курьер, документы и посылки',
+    hint: 'Экспресс-доставка по городу',
+    pickupLabel: 'Откуда забрать',
+    destinationLabel: 'Куда доставить',
+    pickupPlaceholder: 'Адрес отправителя',
+    destinationPlaceholder: 'Адрес получателя',
+    bookLabel: 'Оформить доставку',
+    vehicleHint: 'Выберите формат курьера или грузового авто',
+    placesHeading: 'Частые точки для доставки',
+    welcomeEyebrow: 'Доставка',
   },
 ];
+
+const VEHICLES_BY_SERVICE = {
+  city: [
+    { id: 'jol_x', title: 'Jol X', description: 'Оптимальный повседневный класс', multiplier: 1 },
+    { id: 'comfort', title: 'Comfort', description: 'Больше места и тишины', multiplier: 1.18 },
+    { id: 'business', title: 'Business', description: 'Премиум-салон и приоритетная подача', multiplier: 1.42 },
+  ],
+  intercity: [
+    { id: 'intercity_economy', title: 'Economy', description: 'Бюджетный межгород', multiplier: 1.1 },
+    { id: 'intercity_comfort', title: 'Comfort+', description: 'Дальняя поездка с комфортом', multiplier: 1.28 },
+    { id: 'intercity_van', title: 'Minivan', description: 'Для семьи и багажа', multiplier: 1.48 },
+  ],
+  delivery: [
+    { id: 'courier', title: 'Courier', description: 'Документы и небольшие пакеты', multiplier: 0.92 },
+    { id: 'express', title: 'Express', description: 'Срочная подача и доставка', multiplier: 1.08 },
+    { id: 'cargo', title: 'Cargo', description: 'Крупные коробки и габарит', multiplier: 1.32 },
+  ],
+};
 
 const state = {
   authMode: 'login',
   role: 'passenger',
   user: null,
+  serviceType: 'city',
   activeField: 'pickup',
-  selectedVehicle: VEHICLES[0],
+  selectedVehicle: VEHICLES_BY_SERVICE.city[0],
   pickup: null,
   destination: null,
   map: null,
@@ -47,6 +96,7 @@ const state = {
 };
 
 const els = {
+  appShell: document.getElementById('appShell'),
   authForm: document.getElementById('authForm'),
   authToggleBtn: document.getElementById('authToggleBtn'),
   authHeading: document.getElementById('authHeading'),
@@ -64,12 +114,20 @@ const els = {
   driverFields: document.getElementById('driverFields'),
   carModel: document.getElementById('carModel'),
   carNumber: document.getElementById('carNumber'),
+  serviceGrid: document.getElementById('serviceGrid'),
+  serviceHeading: document.getElementById('serviceHeading'),
+  serviceHint: document.getElementById('serviceHint'),
+  pickupLabelText: document.getElementById('pickupLabelText'),
+  destinationLabelText: document.getElementById('destinationLabelText'),
   pickupInput: document.getElementById('pickupInput'),
   destinationInput: document.getElementById('destinationInput'),
   useMyLocationBtn: document.getElementById('useMyLocationBtn'),
   swapLocationsBtn: document.getElementById('swapLocationsBtn'),
   clearRouteBtn: document.getElementById('clearRouteBtn'),
+  placesHeading: document.getElementById('placesHeading'),
+  placesHint: document.getElementById('placesHint'),
   placesList: document.getElementById('placesList'),
+  vehicleHint: document.getElementById('vehicleHint'),
   vehicleGrid: document.getElementById('vehicleGrid'),
   quoteBtn: document.getElementById('quoteBtn'),
   quotePrice: document.getElementById('quotePrice'),
@@ -78,6 +136,7 @@ const els = {
   bookRideBtn: document.getElementById('bookRideBtn'),
   loadHistoryBtn: document.getElementById('loadHistoryBtn'),
   historyList: document.getElementById('historyList'),
+  welcomeEyebrow: document.getElementById('welcomeEyebrow'),
   welcomeTitle: document.getElementById('welcomeTitle'),
   sessionBadge: document.getElementById('sessionBadge'),
   logoutBtn: document.getElementById('logoutBtn'),
@@ -94,10 +153,12 @@ init();
 
 async function init() {
   bindEvents();
-  renderPlaces(ASTANA_PLACES);
+  renderServices();
+  renderPlaces(getPlacesForCurrentService());
   renderVehicles();
   syncAuthMode();
   restoreSession();
+  applyServiceUi();
   initMap();
   await safeInitDb();
   await loadHistory();
@@ -152,7 +213,7 @@ function initMap() {
   state.map.on('click', (event) => {
     const target = state.activeField === 'destination' ? 'destination' : 'pickup';
     const point = {
-      label: target === 'pickup' ? 'Точка отправления на карте' : 'Точка назначения на карте',
+      label: getMapPointLabel(target),
       subtitle: 'Выбрано вручную',
       lat: Number(event.latlng.lat.toFixed(6)),
       lng: Number(event.latlng.lng.toFixed(6)),
@@ -163,6 +224,18 @@ function initMap() {
     } else {
       setDestination(point);
     }
+  });
+}
+
+function renderServices() {
+  els.serviceGrid.innerHTML = '';
+  SERVICE_TYPES.forEach((service) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = `service-card${service.id === state.serviceType ? ' active' : ''}`;
+    button.innerHTML = `<strong>${service.title}</strong><p>${service.description}</p>`;
+    button.addEventListener('click', () => selectService(service.id));
+    els.serviceGrid.append(button);
   });
 }
 
@@ -186,7 +259,7 @@ function renderPlaces(places) {
 
 function renderVehicles() {
   els.vehicleGrid.innerHTML = '';
-  VEHICLES.forEach((vehicle) => {
+  getVehiclesForCurrentService().forEach((vehicle) => {
     const button = document.createElement('button');
     button.type = 'button';
     button.className = `vehicle-card${vehicle.id === state.selectedVehicle.id ? ' active' : ''}`;
@@ -198,6 +271,35 @@ function renderVehicles() {
     });
     els.vehicleGrid.append(button);
   });
+}
+
+function selectService(serviceType) {
+  if (state.serviceType === serviceType) {
+    return;
+  }
+
+  state.serviceType = serviceType;
+  state.selectedVehicle = getVehiclesForCurrentService()[0];
+  state.quote = null;
+  renderServices();
+  renderVehicles();
+  renderPlaces(getPlacesForCurrentService());
+  applyServiceUi();
+  updateQuoteView();
+}
+
+function applyServiceUi() {
+  const service = getCurrentService();
+  els.serviceHint.textContent = service.hint;
+  els.pickupLabelText.textContent = service.pickupLabel;
+  els.destinationLabelText.textContent = service.destinationLabel;
+  els.pickupInput.placeholder = service.pickupPlaceholder;
+  els.destinationInput.placeholder = service.destinationPlaceholder;
+  els.bookRideBtn.textContent = service.bookLabel;
+  els.vehicleHint.textContent = service.vehicleHint;
+  els.placesHeading.textContent = service.placesHeading;
+  els.placesHint.textContent = service.id === 'intercity' ? 'Выберите город или точку на карте' : 'Нажмите или ищите выше';
+  els.welcomeEyebrow.textContent = service.welcomeEyebrow;
 }
 
 function syncAuthMode() {
@@ -247,7 +349,7 @@ async function handleAuthSubmit(event) {
       state.user = response.user;
       persistSession();
       syncSessionUi();
-      showToast('Аккаунт создан. Теперь можно оформлять поездки.');
+      showToast('Аккаунт создан. Теперь можно оформлять заказы.');
       els.authStatus.textContent = response.message;
     } else {
       const response = await apiFetch('/.netlify/functions/login', {
@@ -305,6 +407,10 @@ function persistSession() {
 }
 
 function syncSessionUi() {
+  const isLoggedIn = Boolean(state.user);
+  document.body.classList.toggle('logged-in', isLoggedIn);
+  els.appShell.classList.toggle('logged-in', isLoggedIn);
+
   if (state.user) {
     els.welcomeTitle.textContent = `Здравствуйте, ${state.user.name}`;
     els.sessionBadge.textContent = state.user.role === 'driver' ? 'Водитель' : 'В сети';
@@ -328,9 +434,10 @@ async function safeInitDb() {
 function handlePlaceSearch(event) {
   const term = event.target.value.trim().toLowerCase();
   state.activeField = event.target === els.destinationInput ? 'destination' : 'pickup';
+  const source = getPlacesForCurrentService();
   const filtered = term
-    ? ASTANA_PLACES.filter((place) => `${place.label} ${place.subtitle}`.toLowerCase().includes(term))
-    : ASTANA_PLACES;
+    ? source.filter((place) => `${place.label} ${place.subtitle}`.toLowerCase().includes(term))
+    : source;
   renderPlaces(filtered);
 }
 
@@ -343,7 +450,7 @@ async function useMyLocation() {
   navigator.geolocation.getCurrentPosition(
     (position) => {
       const point = {
-        label: 'Моя геопозиция',
+        label: state.serviceType === 'delivery' ? 'Адрес отправителя' : 'Моя геопозиция',
         subtitle: 'Определена автоматически',
         lat: Number(position.coords.latitude.toFixed(6)),
         lng: Number(position.coords.longitude.toFixed(6)),
@@ -382,7 +489,7 @@ function updateMarker(type, place, fitBounds = false) {
   }
 
   state[key] = L.marker([place.lat, place.lng], { icon }).addTo(state.map);
-  state[key].bindPopup(`${type === 'pickup' ? 'Откуда' : 'Куда'}: ${place.label}`);
+  state[key].bindPopup(`${type === 'pickup' ? getCurrentService().pickupLabel : getCurrentService().destinationLabel}: ${place.label}`);
 
   drawRoute();
 
@@ -461,6 +568,7 @@ async function requestQuote() {
     const response = await apiFetch('/.netlify/functions/quote', {
       method: 'POST',
       body: {
+        serviceType: state.serviceType,
         pickup: state.pickup,
         destination: state.destination,
       },
@@ -468,7 +576,7 @@ async function requestQuote() {
 
     state.quote = response;
     updateQuoteView();
-    showToast('AI подготовил цену поездки.');
+    showToast('AI подготовил цену заказа.');
   } catch (error) {
     showToast(error.message);
   } finally {
@@ -495,9 +603,9 @@ function updateQuoteView() {
   els.aiReasoning.textContent = state.quote.aiReasoning;
 
   renderMetrics([
+    ['Формат', humanizeServiceType(state.quote.fare.serviceType || state.serviceType)],
     ['Расстояние', `${state.quote.fare.distanceKm} км`],
     ['Время', `${state.quote.fare.durationMin} мин`],
-    ['Спрос', state.quote.fare.demandLabel],
     ['Погода', state.quote.fare.weatherLabel],
   ]);
 }
@@ -519,7 +627,7 @@ async function bookRide() {
   }
 
   if (!state.quote) {
-    showToast('Сначала рассчитайте поездку.');
+    showToast('Сначала рассчитайте заказ.');
     return;
   }
 
@@ -534,6 +642,7 @@ async function bookRide() {
       method: 'POST',
       body: {
         userId: state.user.id,
+        serviceType: state.serviceType,
         vehicleType: state.selectedVehicle.id,
         pickup: state.pickup,
         destination: state.destination,
@@ -565,7 +674,7 @@ async function loadHistory() {
 
 function renderHistory(rides) {
   if (!rides.length) {
-    els.historyList.innerHTML = '<p class="empty-state">Пока поездок нет. Оформите первую после расчёта цены.</p>';
+    els.historyList.innerHTML = '<p class="empty-state">Пока заказов нет. Оформите первый после расчёта цены.</p>';
     return;
   }
 
@@ -578,7 +687,7 @@ function renderHistory(rides) {
         <div class="history-route">${ride.pickup_label} → ${ride.destination_label}</div>
         <strong>${formatKzt(ride.recommended_price)}</strong>
       </div>
-      <div class="history-meta">${ride.vehicle_type} • ${ride.route_distance_km} км • ${ride.route_duration_min} мин • ${formatDate(ride.created_at)}</div>
+      <div class="history-meta">${humanizeServiceType(ride.service_type)} • ${ride.vehicle_type} • ${ride.route_distance_km} км • ${ride.route_duration_min} мин • ${formatDate(ride.created_at)}</div>
     `;
     els.historyList.append(item);
   });
@@ -616,7 +725,7 @@ function logout() {
 function renderChat(messages) {
   els.chatLog.innerHTML = '';
   if (!messages.length) {
-    appendChatMessage('assistant', 'Я на связи. Спросите про цену поездки, маршрут по Астане или статус заказа.');
+    appendChatMessage('assistant', 'Я на связи. Спросите про цену поездки, доставку, маршрут по Астане или статус заказа.');
     return;
   }
 
@@ -661,6 +770,33 @@ function appendChatMessage(role, text) {
   item.innerHTML = `<p>${escapeHtml(text)}</p>`;
   els.chatLog.append(item);
   els.chatLog.scrollTop = els.chatLog.scrollHeight;
+}
+
+function getCurrentService() {
+  return SERVICE_TYPES.find((service) => service.id === state.serviceType) || SERVICE_TYPES[0];
+}
+
+function getPlacesForCurrentService() {
+  return state.serviceType === 'intercity' ? [...CITY_PLACES, ...INTERCITY_PLACES] : CITY_PLACES;
+}
+
+function getVehiclesForCurrentService() {
+  return VEHICLES_BY_SERVICE[state.serviceType] || VEHICLES_BY_SERVICE.city;
+}
+
+function getMapPointLabel(target) {
+  if (state.serviceType === 'delivery') {
+    return target === 'pickup' ? 'Точка забора на карте' : 'Точка доставки на карте';
+  }
+  if (state.serviceType === 'intercity') {
+    return target === 'pickup' ? 'Точка старта на карте' : 'Точка прибытия на карте';
+  }
+  return target === 'pickup' ? 'Точка отправления на карте' : 'Точка назначения на карте';
+}
+
+function humanizeServiceType(serviceType) {
+  const service = SERVICE_TYPES.find((item) => item.id === serviceType);
+  return service ? service.title : 'Такси';
 }
 
 function showToast(message) {

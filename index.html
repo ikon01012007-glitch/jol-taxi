@@ -12,7 +12,7 @@
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
-  <div class="app-shell">
+  <div class="app-shell" id="appShell">
     <aside class="side-panel">
       <div class="brand-block">
         <div class="brand-chip">AI dispatch</div>
@@ -104,7 +104,7 @@
 
             <div class="welcome-card">
               <div>
-                <p class="eyebrow">Пассажир</p>
+                <p class="eyebrow" id="welcomeEyebrow">Пассажир</p>
                 <h3 id="welcomeTitle">Добро пожаловать в Jol</h3>
               </div>
               <div class="cta-row">
@@ -113,14 +113,22 @@
               </div>
             </div>
 
+            <div class="service-block">
+              <div class="block-heading">
+                <h3 id="serviceHeading">Формат заказа</h3>
+                <span id="serviceHint">Городская поездка по Астане</span>
+              </div>
+              <div class="service-grid" id="serviceGrid"></div>
+            </div>
+
             <div class="location-card">
               <label class="field">
-                <span>Откуда</span>
+                <span id="pickupLabelText">Откуда</span>
                 <input id="pickupInput" type="text" placeholder="Выберите точку на карте или из списка" autocomplete="off">
               </label>
 
               <label class="field">
-                <span>Куда</span>
+                <span id="destinationLabelText">Куда</span>
                 <input id="destinationInput" type="text" placeholder="Например, Khan Shatyr" autocomplete="off">
               </label>
 
@@ -133,8 +141,8 @@
 
             <div class="places-block">
               <div class="block-heading">
-                <h3>Популярные точки Астаны</h3>
-                <span>Нажмите или ищите выше</span>
+                <h3 id="placesHeading">Популярные точки Астаны</h3>
+                <span id="placesHint">Нажмите или ищите выше</span>
               </div>
               <div class="places-list" id="placesList"></div>
             </div>
@@ -142,7 +150,7 @@
             <div class="vehicles-block">
               <div class="block-heading">
                 <h3>Тарифы</h3>
-                <span>AI рекомендует цену, вы выбираете класс</span>
+                <span id="vehicleHint">AI рекомендует цену, вы выбираете класс</span>
               </div>
               <div class="vehicle-grid" id="vehicleGrid"></div>
             </div>
@@ -187,11 +195,11 @@
 
             <div class="history-card">
               <div class="block-heading">
-                <h3>Последние поездки</h3>
+                <h3>Последние заказы</h3>
                 <span>Сохраняются в Neon</span>
               </div>
               <div class="history-list" id="historyList">
-                <p class="empty-state">Пока поездок нет. Зарегистрируйтесь и оформите первую.</p>
+                <p class="empty-state">Пока заказов нет. Зарегистрируйтесь и оформите первый.</p>
               </div>
             </div>
           </div>
