@@ -1,58 +1,85 @@
-import { neon } from '@neondatabase/serverless'; //
+import { askGemini } from './lib/ai.mjs';
+import { ensureTables, getSql } from './lib/db.mjs';
+import { badRequest, methodNotAllowed, ok, parseBody, serverError } from './lib/http.mjs';
 
-export default async function handler(request, context) {
-    if (request.method !== 'POST') return new Response(JSON.stringify({ error: 'Method Not Allowed' }), { status: 405 });
+export async function handler(event) {
+  try {
+    const sql = await ensureTables(getSql());
 
-    const sql = neon(process.env.DATABASE_URL); //
+    if (event.httpMethod === 'GET') {
+      const userId = Number(event.queryStringParameters?.userId || 0);
+      if (!userId) {
+        return ok({ messages: [] });
+      }
 
-    try {
-        const data = await request.json();
-        const { action, sender, receiver, text } = data;
+      const messages = await sql`
+        SELECT id, role, text, created_at
+        FROM chat_messages
+        WHERE user_id = ${userId} AND channel = 'support'
+        ORDER BY created_at ASC
+        LIMIT 40
+      `;
 
-        if (action === 'send') {
-            await sql`INSERT INTO chat_messages (sender, receiver, text) VALUES (${sender}, ${receiver}, ${text})`;
-
-            let replyText = "";
-            if (receiver === 'support') {
-                const apiKey = process.env.GEMINI_API_KEY; // 
-                
-                // Имитация данных о пробках (в реальном приложении здесь будет запрос к Maps API)
-                const currentHour = new Date().getHours();
-                const trafficJams = (currentHour >= 8 && currentHour <= 10) || (currentHour >= 17 && currentHour <= 19) ? 9 : 3;
-                const demandCoeff = trafficJams > 7 ? 1.5 : 1.0; // Повышенный спрос в пробки
-
-                const systemPrompt = `
-                    Ты — диспетчер такси "Jol AI" в Астане. Твоя задача — рассчитать стоимость поездки.
-                    Текущая ситуация на дорогах: ${trafficJams}/10 баллов.
-                    Коэффициент спроса: x${demandCoeff}.
-                    Базовый тариф: 500 тенге + 150 тенге за км.
-
-                    Если пользователь пишет маршрут:
-                    1. Оцени примерное расстояние (используй свои знания карты Астаны).
-                    2. Рассчитай цену: (500 + (расстояние * 150)) * ${demandCoeff}.
-                    3. Распиши пользователю, почему такая цена: "Базовый тариф + пробки ${trafficJams} баллов".
-                    
-                    Отвечай кратко и профессионально.
-                `;
-
-                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        contents: [{ parts: [{ text: systemPrompt + "\nСообщение пользователя: " + text }] }]
-                    })
-                });
-
-                const aiData = await response.json();
-                replyText = aiData.candidates?.[0]?.content?.parts?.[0]?.text || "Ошибка связи с диспетчером.";
-                
-                await sql`INSERT INTO chat_messages (sender, receiver, text) VALUES ('support', ${sender}, ${replyText})`;
-            }
-
-            return new Response(JSON.stringify({ message: "Отправлено", reply: replyText }), { status: 200 });
-        }
-        // ... (остальной код загрузки истории)
-    } catch (error) {
-        return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+      return ok({ messages });
     }
+
+    if (event.httpMethod !== 'POST') {
+      return methodNotAllowed();
+    }
+
+    const { userId, text, userName = 'пользователь' } = parseBody(event);
+    if (!userId || !text?.trim()) {
+      return badRequest('Сообщение пустое.');
+    }
+
+    await sql`
+      INSERT INTO chat_messages (user_id, role, channel, text)
+      VALUES (${userId}, 'user', 'support', ${text.trim()})
+    `;
+
+    const latestRide = await sql`
+      SELECT pickup_label, destination_label, recommended_price, status, created_at
+      FROM rides
+      WHERE passenger_id = ${userId}
+      ORDER BY created_at DESC
+      LIMIT 1
+    `;
+
+    let reply =
+      'Я на связи. Могу помочь с поездкой, ценой, маршрутом по Астане, безопасностью и статусом заказа.';
+    const normalizedText = text.trim().toLowerCase();
+    const lastRide = latestRide[0];
+
+    if (/(цена|стоимость|тариф|дорого|сколько)/i.test(normalizedText)) {
+      reply = lastRide
+        ? `Последняя цена была ${lastRide.recommended_price} ₸ за маршрут ${lastRide.pickup_label} -> ${lastRide.destination_label}. На итог влияют расстояние, время в пути, текущий спрос, пробки и погода в Астане.`
+        : 'Цена поездки зависит от расстояния, времени в пути, текущего спроса, пробок и погоды в Астане. Если хотите, рассчитайте маршрут на главном экране, и я помогу разобрать итоговую стоимость.';
+    } else {
+      try {
+        const assistantText = await askGemini({
+          systemPrompt:
+            'Ты AI-оператор поддержки сервиса Jol Taxi в Астане. Отвечай по-русски, спокойно, конкретно и кратко. Отвечай только на текущее сообщение пользователя. Не выдумывай потерянные вещи, аварии, отмены и другие события, если пользователь их не упоминал.',
+          userPrompt: `Пользователь: ${userName}. Последняя поездка: ${lastRide ? `${lastRide.pickup_label} -> ${lastRide.destination_label}, ${lastRide.recommended_price} ₸, статус ${lastRide.status}` : 'нет данных'}. Сообщение пользователя: ${text.trim()}`,
+        });
+
+        if (assistantText) {
+          reply = assistantText;
+        }
+      } catch {
+        // Use fallback reply when Gemini is unavailable.
+      }
+    }
+
+    const inserted = await sql`
+      INSERT INTO chat_messages (user_id, role, channel, text)
+      VALUES (${userId}, 'assistant', 'support', ${reply})
+      RETURNING id, role, text, created_at
+    `;
+
+    return ok({
+      reply: inserted[0],
+    });
+  } catch (error) {
+    return serverError(error);
+  }
 }

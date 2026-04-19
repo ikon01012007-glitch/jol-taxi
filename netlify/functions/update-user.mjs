@@ -1,33 +1,56 @@
-import { neon } from '@netlify/neon';
+import { hashPassword, sanitizeUser, verifyPassword } from './lib/auth.mjs';
+import { ensureTables, getSql } from './lib/db.mjs';
+import { badRequest, methodNotAllowed, ok, parseBody, serverError, unauthorized } from './lib/http.mjs';
 
-export default async function handler(request, context) {
-    if (request.method !== 'POST') return new Response(JSON.stringify({ error: 'Метод не поддерживается' }), { status: 405 });
+export async function handler(event) {
+  if (event.httpMethod !== 'POST') {
+    return methodNotAllowed();
+  }
 
-    try {
-        const data = await request.json();
-        const { action, iin, email, bloodType, newPassword, oldPassword } = data;
-        const sql = neon();
+  try {
+    const sql = await ensureTables(getSql());
+    const { action, userId, name, email, phone, car_model, car_number, oldPassword, newPassword } = parseBody(event);
 
-        // Если пришел запрос на смену пароля
-        if (action === 'change_password') {
-            const user = await sql`SELECT * FROM users WHERE iin = ${iin} AND password = ${oldPassword}`;
-            if (user.length === 0) {
-                return new Response(JSON.stringify({ error: 'Неверный старый пароль' }), { status: 401 });
-            }
-            await sql`UPDATE users SET password = ${newPassword} WHERE iin = ${iin}`;
-            return new Response(JSON.stringify({ message: '✅ Пароль успешно изменён!' }), { status: 200 });
-        }
-
-        // Если пришел запрос на обновление профиля (почта и группа крови)
-        if (action === 'update_profile') {
-            await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS blood_type TEXT;`;
-            await sql`UPDATE users SET email = ${email}, blood_type = ${bloodType} WHERE iin = ${iin}`;
-            return new Response(JSON.stringify({ message: 'Данные успешно сохранены!' }), { status: 200 });
-        }
-
-        return new Response(JSON.stringify({ error: 'Неизвестное действие' }), { status: 400 });
-
-    } catch (error) {
-        return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+    if (!userId) {
+      return badRequest('Не найден пользователь.');
     }
+
+    if (action === 'change_password') {
+      if (!oldPassword || !newPassword) {
+        return badRequest('Введите старый и новый пароль.');
+      }
+
+      const result = await sql`SELECT id, password_hash FROM users WHERE id = ${userId} LIMIT 1`;
+      const user = result[0];
+      if (!user || !verifyPassword(oldPassword, user.password_hash)) {
+        return unauthorized('Старый пароль указан неверно.');
+      }
+
+      await sql`UPDATE users SET password_hash = ${hashPassword(newPassword)} WHERE id = ${userId}`;
+      return ok({ message: 'Пароль обновлён.' });
+    }
+
+    if (action === 'update_profile') {
+      const result = await sql`
+        UPDATE users
+        SET
+          name = COALESCE(${name?.trim() || null}, name),
+          email = COALESCE(${email?.trim().toLowerCase() || null}, email),
+          phone = COALESCE(${phone?.trim() || null}, phone),
+          car_model = ${car_model || null},
+          car_number = ${car_number || null}
+        WHERE id = ${userId}
+        RETURNING id, name, email, phone, role, car_model, car_number, rating, created_at
+      `;
+
+      return ok({
+        message: 'Профиль обновлён.',
+        user: sanitizeUser(result[0]),
+      });
+    }
+
+    return badRequest('Неизвестное действие.');
+  } catch (error) {
+    return serverError(error);
+  }
 }

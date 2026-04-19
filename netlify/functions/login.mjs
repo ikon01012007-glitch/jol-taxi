@@ -1,24 +1,36 @@
-import { neon } from '@neondatabase/serverless'; // ИСПРАВЛЕНО
+import { sanitizeUser, verifyPassword } from './lib/auth.mjs';
+import { ensureTables, getSql } from './lib/db.mjs';
+import { badRequest, methodNotAllowed, ok, parseBody, serverError, unauthorized } from './lib/http.mjs';
 
-export default async function handler(request, context) {
-    if (request.method !== 'POST') return new Response(JSON.stringify({ error: 'Method Not Allowed' }), { status: 405 });
+export async function handler(event) {
+  if (event.httpMethod !== 'POST') {
+    return methodNotAllowed();
+  }
 
-    try {
-        const { email, password } = await request.json();
-        const sql = neon(process.env.DATABASE_URL);
+  try {
+    const sql = await ensureTables(getSql());
+    const { identifier, password } = parseBody(event);
 
-        const result = await sql`
-            SELECT id, name, email, iin, role, car_model, car_number, rating 
-            FROM users 
-            WHERE email = ${email} AND password = ${password}
-        `;
-
-        if (result.length > 0) {
-            return new Response(JSON.stringify({ user: result[0] }), { status: 200 });
-        } else {
-            return new Response(JSON.stringify({ error: "Неверный логин или пароль" }), { status: 401 });
-        }
-    } catch (error) {
-        return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+    if (!identifier || !password) {
+      return badRequest('Введите email или телефон и пароль.');
     }
+
+    const result = await sql`
+      SELECT id, name, email, phone, role, car_model, car_number, rating, created_at, password_hash
+      FROM users
+      WHERE email = ${identifier.trim().toLowerCase()} OR phone = ${identifier.trim()}
+      LIMIT 1
+    `;
+
+    const user = result[0];
+    if (!user || !verifyPassword(password, user.password_hash)) {
+      return unauthorized('Неверный логин или пароль.');
+    }
+
+    return ok({
+      user: sanitizeUser(user),
+    });
+  } catch (error) {
+    return serverError(error);
+  }
 }
