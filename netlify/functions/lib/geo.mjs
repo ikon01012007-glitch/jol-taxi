@@ -47,19 +47,33 @@ export async function getAstanaWeather() {
   }
 }
 
-export function buildFareModel({ distanceKm, durationMin, weather }) {
+const SERVICE_PROFILES = {
+  city: { label: 'Такси', baseFare: 690, distanceRate: 145, durationRate: 18, multiplier: 1, minimum: 900 },
+  intercity: { label: 'Межгород', baseFare: 2200, distanceRate: 185, durationRate: 16, multiplier: 1.18, minimum: 3500 },
+  delivery: { label: 'Доставка', baseFare: 850, distanceRate: 120, durationRate: 12, multiplier: 0.96, minimum: 1200 },
+};
+
+export function buildFareModel({ distanceKm, durationMin, weather, serviceType = 'city' }) {
   const now = new Date();
   const demandMultiplier = getDemandMultiplier(now);
   const trafficMultiplier = getTrafficMultiplier(now);
   const weatherMultiplier = getWeatherMultiplier(weather);
+  const service = SERVICE_PROFILES[serviceType] || SERVICE_PROFILES.city;
 
-  const baseFare = 690;
-  const distanceFare = distanceKm * 145;
-  const durationFare = durationMin * 18;
-  const rawPrice = (baseFare + distanceFare + durationFare) * demandMultiplier * trafficMultiplier * weatherMultiplier;
-  const recommendedPrice = roundPrice(rawPrice);
+  const baseFare = service.baseFare;
+  const distanceFare = distanceKm * service.distanceRate;
+  const durationFare = durationMin * service.durationRate;
+  const rawPrice =
+    (baseFare + distanceFare + durationFare) *
+    demandMultiplier *
+    trafficMultiplier *
+    weatherMultiplier *
+    service.multiplier;
+  const recommendedPrice = roundPrice(rawPrice, service.minimum);
 
   return {
+    serviceType,
+    serviceLabel: service.label,
     baseFare,
     distanceKm: Number(distanceKm.toFixed(2)),
     durationMin,
@@ -182,8 +196,8 @@ function describeWeather(weather) {
   return 'Ясно';
 }
 
-function roundPrice(value) {
-  return Math.max(900, Math.round(value / 10) * 10);
+function roundPrice(value, minimum) {
+  return Math.max(minimum, Math.round(value / 10) * 10);
 }
 
 function toRadians(value) {

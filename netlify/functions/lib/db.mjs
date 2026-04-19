@@ -34,6 +34,7 @@ export async function ensureTables(sql = getSql()) {
     CREATE TABLE IF NOT EXISTS rides (
       id SERIAL PRIMARY KEY,
       passenger_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      service_type VARCHAR(30) NOT NULL DEFAULT 'city',
       vehicle_type VARCHAR(30) NOT NULL DEFAULT 'jol_x',
       pickup_label TEXT NOT NULL,
       pickup_lat DOUBLE PRECISION NOT NULL,
@@ -53,6 +54,8 @@ export async function ensureTables(sql = getSql()) {
       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
     )
   `;
+
+  await sql`ALTER TABLE rides ADD COLUMN IF NOT EXISTS service_type VARCHAR(30) NOT NULL DEFAULT 'city'`;
 
   await sql`
     CREATE TABLE IF NOT EXISTS chat_messages (
