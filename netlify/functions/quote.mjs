@@ -8,7 +8,7 @@ export async function handler(event) {
   }
 
   try {
-    const { pickup, destination } = parseBody(event);
+    const { pickup, destination, serviceType = 'city' } = parseBody(event);
 
     if (!pickup?.label || pickup?.lat == null || pickup?.lng == null || !destination?.label || destination?.lat == null || destination?.lng == null) {
       return badRequest('Выберите точку отправления и пункт назначения.');
@@ -20,16 +20,17 @@ export async function handler(event) {
       distanceKm: route.distanceKm,
       durationMin: route.durationMin,
       weather,
+      serviceType,
     });
 
-    let aiReasoning = `${fare.demandLabel}, ${fare.trafficLabel.toLowerCase()}, погода: ${fare.weatherLabel.toLowerCase()}.`;
+    let aiReasoning = `${fare.serviceLabel}: ${fare.demandLabel.toLowerCase()}, ${fare.trafficLabel.toLowerCase()}, погода: ${fare.weatherLabel.toLowerCase()}.`;
     let recommendedPrice = fare.recommendedPrice;
 
     try {
       const answer = await askGemini({
         systemPrompt:
-          'Ты AI-диспетчер премиального сервиса такси в Астане. Отвечай кратко, деловым русским языком, без Markdown. В конце обязательно дай итоговую цену в тенге одной строкой: "Цена: 1234 ₸".',
-        userPrompt: `Маршрут: ${pickup.label} -> ${destination.label}. Расстояние: ${fare.distanceKm} км. Время: ${fare.durationMin} мин. Спрос: ${fare.demandLabel}. Трафик: ${fare.trafficLabel}. Погода: ${fare.weatherLabel}. Базовая рекомендация системы: ${fare.recommendedPrice} тенге. Объясни цену и можешь скорректировать её не более чем на 12% от системной оценки.`,
+          'Ты AI-диспетчер сервиса мобильности Jol в Казахстане. Отвечай кратко, деловым русским языком, без Markdown. В конце обязательно дай итоговую цену в тенге одной строкой: "Цена: 1234 ₸".',
+        userPrompt: `Формат заказа: ${fare.serviceLabel}. Маршрут: ${pickup.label} -> ${destination.label}. Расстояние: ${fare.distanceKm} км. Время: ${fare.durationMin} мин. Спрос: ${fare.demandLabel}. Трафик: ${fare.trafficLabel}. Погода: ${fare.weatherLabel}. Базовая рекомендация системы: ${fare.recommendedPrice} тенге. Объясни цену и можешь скорректировать её не более чем на 12% от системной оценки.`,
       });
 
       if (answer) {

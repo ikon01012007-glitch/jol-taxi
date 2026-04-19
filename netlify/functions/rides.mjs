@@ -14,6 +14,7 @@ export async function handler(event) {
       const rides = await sql`
         SELECT
           id,
+          service_type,
           vehicle_type,
           pickup_label,
           destination_label,
@@ -32,7 +33,7 @@ export async function handler(event) {
     }
 
     if (event.httpMethod === 'POST') {
-      const { userId, vehicleType, pickup, destination, fare, aiReasoning } = parseBody(event);
+      const { userId, serviceType = 'city', vehicleType, pickup, destination, fare, aiReasoning } = parseBody(event);
 
       if (!userId || !pickup || !destination || !fare) {
         return badRequest('Недостаточно данных для заказа.');
@@ -41,6 +42,7 @@ export async function handler(event) {
       const result = await sql`
         INSERT INTO rides (
           passenger_id,
+          service_type,
           vehicle_type,
           pickup_label,
           pickup_lat,
@@ -60,6 +62,7 @@ export async function handler(event) {
         )
         VALUES (
           ${userId},
+          ${serviceType},
           ${vehicleType || 'jol_x'},
           ${pickup.label},
           ${pickup.lat},
@@ -81,7 +84,7 @@ export async function handler(event) {
       `;
 
       return ok({
-        message: 'Поездка оформлена. Водитель скоро будет назначен.',
+        message: serviceType === 'delivery' ? 'Доставка оформлена. Курьер скоро будет назначен.' : 'Заказ оформлен. Водитель скоро будет назначен.',
         ride: result[0],
       });
     }
