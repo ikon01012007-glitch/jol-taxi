@@ -96,7 +96,7 @@ const state = {
   routeLine: null,
   quote: null,
   supportLoaded: false,
-  mobileSheetExpanded: false,
+  mobileSheetExpanded: true,
 };
 
 const els = {
@@ -432,30 +432,16 @@ function syncSessionUi() {
 }
 
 function toggleMobileSheet() {
-  if (!isMobileViewport()) {
-    return;
-  }
-
   state.mobileSheetExpanded = !state.mobileSheetExpanded;
   syncMobileSheet();
 }
 
 function syncMobileSheet() {
-  if (!isMobileViewport()) {
-    els.bottomSheet.classList.remove('mobile-collapsed');
-    els.mobileSheetToggle.textContent = 'Показать меню';
-    return;
-  }
-
-  els.bottomSheet.classList.toggle('mobile-collapsed', !state.mobileSheetExpanded);
-  els.mobileSheetToggle.textContent = state.mobileSheetExpanded ? 'Скрыть меню' : 'Показать меню';
+  els.bottomSheet.classList.toggle('collapsed', !state.mobileSheetExpanded);
+  els.mobileSheetToggle.textContent = state.mobileSheetExpanded ? 'Развернуть меню' : 'Свернуть меню';
 }
 
 function expandMobileSheet() {
-  if (!isMobileViewport()) {
-    return;
-  }
-
   state.mobileSheetExpanded = true;
   syncMobileSheet();
 }

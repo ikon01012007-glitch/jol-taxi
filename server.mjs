@@ -154,9 +154,7 @@ function loadDotEnv(envPath) {
 
     const key = trimmed.slice(0, separator).trim();
     const value = trimmed.slice(separator + 1).trim().replace(/^"(.*)"$/, '$1');
-    if (!(key in process.env)) {
-      process.env[key] = value;
-    }
+    process.env[key] = value;
   }
 
   process.env.__DOTENV_CACHE = envPath;
