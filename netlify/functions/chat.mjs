@@ -64,9 +64,12 @@ export async function handler(event) {
 
         if (assistantText) {
           reply = assistantText;
+        } else {
+          reply = '[ОТЛАДКА] Gemini вернул пустой ответ.';
         }
-      } catch {
-        // Use fallback reply when Gemini is unavailable.
+      } catch (error) {
+        // Выводим текст ошибки прямо в чат
+        reply = `[ОТЛАДКА] Ошибка: ${error.message}`;
       }
     }
 
@@ -80,6 +83,7 @@ export async function handler(event) {
       reply: inserted[0],
     });
   } catch (error) {
-    return serverError(error);
-  }
+        console.error('Ошибка Gemini API:', error);
+        reply = 'Извините, сейчас AI-сервер временно недоступен. Попробуйте повторить вопрос чуть позже.';
+      }
 }
