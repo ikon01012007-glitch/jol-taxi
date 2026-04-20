@@ -199,7 +199,19 @@ function bindEvents() {
   els.quoteBtn.addEventListener('click', requestQuote);
   els.mobileSheetToggle.addEventListener('click', toggleMobileSheet);
   els.bookRideBtn.addEventListener('click', bookRide);
-  els.loadHistoryBtn.addEventListener('click', loadHistory);
+  els.loadHistoryBtn.addEventListener('click', async () => {
+    const historyCard = document.querySelector('.history-card');
+    const isVisible = historyCard.classList.toggle('visible');
+    
+    // Меняем текст кнопки в зависимости от статуса
+    els.loadHistoryBtn.textContent = isVisible ? 'Скрыть историю' : 'История';
+    
+    if (isVisible) {
+      await loadHistory(); // Загружаем данные только при открытии
+      // Плавно прокручиваем к карточке истории
+      setTimeout(() => historyCard.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
+    }
+  });
   els.logoutBtn.addEventListener('click', logout);
   els.openSupportBtn.addEventListener('click', openSupport);
   els.closeSupportBtn.addEventListener('click', closeSupport);

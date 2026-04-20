@@ -79,6 +79,14 @@ button {
   box-shadow: var(--shadow);
 }
 
+.history-card {
+  display: none; /* Скрываем по умолчанию */
+}
+
+.history-card.visible {
+  display: block; /* Показываем при добавлении класса JS-скриптом */
+}
+
 .brand-block {
   border-radius: 28px;
   padding: 28px;
@@ -629,63 +637,89 @@ button {
 
 @media (max-width: 760px) {
   .app-shell {
-    padding: 12px;
-    gap: 12px;
-  }
-
-  .top-overlay {
-    inset: 14px 14px auto 14px;
+    display: flex;
     flex-direction: column;
-    align-items: stretch;
+    padding: 12px;
+    gap: 16px;
   }
 
+  /* Убираем фон телефона, чтобы карточки слились с общим фоном */
+  .phone-screen {
+    padding: 0;
+    border: none;
+    box-shadow: none;
+    background: transparent;
+  }
+
+  .map-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-height: auto;
+    background: transparent;
+  }
+
+  /* Растворяем контейнер, чтобы его карточки стали самостоятельными блоками */
   .bottom-sheet {
-    inset: auto 10px 10px 10px;
-    width: auto;
-    max-height: 72vh;
-    transition: max-height 0.25s ease;
+    display: contents; 
   }
 
-  .bottom-sheet.mobile-collapsed {
-    max-height: 168px;
-    overflow: hidden;
+  .sheet-topbar {
+    display: none; /* Убираем кнопку и ползунок сворачивания */
   }
 
-  .bottom-sheet.mobile-collapsed::after {
-    content: '';
-    position: absolute;
-    inset: auto 0 0 0;
-    height: 56px;
-    background: linear-gradient(180deg, rgba(249, 248, 244, 0), rgba(249, 248, 244, 1));
-    pointer-events: none;
+  /* === ПОРЯДОК ОТОБРАЖЕНИЯ === */
+  
+  /* 1. Карточки приветствия и заголовки в самом верху */
+  .welcome-card { order: 1; }
+  .top-overlay { 
+    order: 2; 
+    position: static; 
+    padding: 0; 
+  }
+  .top-overlay > div {
+    box-shadow: none;
+    background: transparent;
+    padding: 0 4px;
   }
 
-  .sheet-toggle {
-    display: inline-flex;
+  /* 2. Карта становится квадратным блоком ПОД приветствием */
+  #map {
+    order: 3;
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1 / 1; /* Делает карту строго квадратной */
+    max-height: 400px; /* Защита от слишком вытянутых экранов */
+    border-radius: 24px;
+    z-index: 10;
   }
 
+  /* 3. Меню заказа выстраивается строго ПОД картой */
+  .service-block { order: 4; }
+  .location-card { order: 5; }
+  .places-block { order: 6; }
+  .vehicles-block { order: 7; }
+  .quote-card { order: 8; }
+  .history-card { order: 9; }
+
+  /* Делаем тарифы и частые места свайпаемыми по горизонтали */
   .service-grid,
   .places-list,
   .vehicle-grid {
     display: flex;
     overflow-x: auto;
     scroll-snap-type: x proximity;
-    padding-bottom: 4px;
+    padding-bottom: 8px;
+    margin: 0 -4px;
   }
 
   .service-card,
   .place-chip,
   .vehicle-card {
-    min-width: 220px;
-    flex: 0 0 220px;
+    min-width: 140px;
+    flex: 0 0 140px;
     scroll-snap-align: start;
-  }
-
-  .welcome-card,
-  .cta-row,
-  .location-actions {
-    flex-wrap: wrap;
-    align-items: center;
+    margin: 0 4px;
   }
 
   .auth-top,
